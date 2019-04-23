@@ -2,10 +2,13 @@ import sys
 import requests
 from math import sin, cos, sqrt, atan2, radians
 
+# URL StaticAPI
 static_api_server = "http://static-maps.yandex.ru/1.x/"
+# URL GeocoderAPI
 geocoder_api_server = "https://geocode-maps.yandex.ru/1.x/"
 
 
+# Получение топонима
 def get_toponym(toponym):
     global geocoder_api_server
 
@@ -16,35 +19,41 @@ def get_toponym(toponym):
 
     # Запрос к геокодеру
     response = requests.get(geocoder_api_server, params)
-    # Преобразуем ответ в json-объект
+    # Преобразование ответа в json-объект
     json_response = response.json()
-    # Получаем первый топоним из ответа геокодера.
+    # Получение первого топонима из ответа геокодера.
     toponym = json_response["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
 
     return toponym
 
 
-def get_distance_on_map(city1, city2, map_type="map"):
+# Получение расстояния между двумя городами, а также карты, где они отмечены и соединены линией
+def get_distance_on_map(city1, city2, map_type):
+    # Получение типа карты
+    map_type_dict = {'карта': 'map', 'спутник': 'sat', 'гибрид': 'sat,skl'}
+    map_type = map_type_dict[map_type]
+
     global static_api_server
 
+    # Получение топонимов городов
     city1 = get_toponym(city1)
     city2 = get_toponym(city2)
-    # Получаем координаты городов
-    city1_longitude, city1_lattitude = city1["Point"]["pos"].split(" ")
-    city2_longitude, city2_lattitude = city2["Point"]["pos"].split(" ")
+    # Получение координатов городов
+    city1_longitude, city1_latitude = city1["Point"]["pos"].split(" ")
+    city2_longitude, city2_latitude = city2["Point"]["pos"].split(" ")
 
     # Собираем параметры для запроса к StaticMapsAPI:
     map_params = {
         "l": map_type,
-        "pt": ",".join([city1_longitude, city1_lattitude]) + ",pm2rdl1~" + ",".join(
-            [city2_longitude, city2_lattitude]) + ",pm2rdl2",
-        "pl": "c:911e42AA," + ",".join([city1_longitude, city1_lattitude, city2_longitude, city2_lattitude])
+        "pt": ",".join([city1_longitude, city1_latitude]) + ",pm2rdl1~" + ",".join(
+            [city2_longitude, city2_latitude]) + ",pm2rdl2",
+        "pl": "c:911e42AA," + ",".join([city1_longitude, city1_latitude, city2_longitude, city2_latitude])
     }
 
     response = requests.get(static_api_server, params=map_params)
     image = response.content
-    distance = get_distance([float(x) for x in [city1_longitude, city1_lattitude]],
-                            [float(x) for x in [city2_longitude, city2_lattitude]])
+    distance = get_distance([float(x) for x in [city1_longitude, city1_latitude]],
+                            [float(x) for x in [city2_longitude, city2_latitude]])
     return distance, image
 
 
@@ -82,3 +91,7 @@ def get_country(city):
         json['response']['GeoObjectCollection']['featureMember'][0]['GeoObject']['metaDataProperty'][
             'GeocoderMetaData'][
             'AddressDetails']['Country']['CountryName']
+
+
+def show_on_map(cities):
+    pass
