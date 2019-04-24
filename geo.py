@@ -1,6 +1,7 @@
 import sys
 import requests
 from math import sin, cos, sqrt, atan2, radians
+import pygame
 
 # URL StaticAPI
 static_api_server = "http://static-maps.yandex.ru/1.x/"
@@ -44,8 +45,8 @@ def get_distance_on_map(city1, city2, map_type):
     city1 = get_toponym(city1)
     city2 = get_toponym(city2)
     # Получение координатов городов
-    city1_longitude, city1_latitude = city1["Point"]["pos"].split(" ")
-    city2_longitude, city2_latitude = city2["Point"]["pos"].split(" ")
+    city1_longitude, city1_latitude = city1["Point"]["pos"].split()
+    city2_longitude, city2_latitude = city2["Point"]["pos"].split()
 
     map_params = {
         "l": map_type,
@@ -91,10 +92,11 @@ def get_country(city, map_type):
     city = get_toponym(city)
 
     country = city['metaDataProperty']['GeocoderMetaData']['AddressDetails']['Country']['CountryName']
-
     map_params = {
+        "z": 11,
+        "ll": ','.join(city["Point"]["pos"].split()),
         "l": map_type,
-        "pt": ",".join(city["Point"]["pos"]) + ",pm2rdl1~"
+        "pt": ','.join(city["Point"]["pos"].split()) + ",pm2rdl1"
     }
 
     response = requests.get(static_api_server, params=map_params)
@@ -134,13 +136,11 @@ def search_organization(organization, map_type):
     # URL организации
     org_info["url"] = organization["properties"]["CompanyMetaData"]["url"]
     # Категории организации
-    org_info['categories'] = []
+    org_info['categories'] = ''
     if organization["properties"]["CompanyMetaData"]["Categories"]:
-        for i in range(len(organization["properties"]["CompanyMetaData"]["Categories"])):
-            org_info['categories'].append(
-                str(i) + '. ' + organization["properties"]["CompanyMetaData"]["Categories"]['name'])
+        org_info['categories'] = organization["properties"]["CompanyMetaData"]["Categories"][0]['name']
     else:
-        org_info['categories'].append('Пусто')
+        org_info['categories'] = 'Пусто'
     # Время работы
     org_info['hours'] = organization["properties"]["CompanyMetaData"]["Hours"]["text"]
 
@@ -152,7 +152,7 @@ def search_organization(organization, map_type):
     map_params = {
         "spn": ",".join([delta, delta]),
         "l": map_type,
-        "pt": "{0},work".format(org_point)
+        "pt": "{},work".format(org_point)
     }
 
     response = requests.get(static_api_server, params=map_params)
@@ -173,8 +173,9 @@ def get_traffic(city, map_type):
     points = city["Point"]["pos"].split()
 
     map_params = {
-        "l": map_type + 'trf,skl',
-        "ll": ",".join(points)
+        "ll": ",".join(points),
+        "z": 10,
+        "l": map_type + ',trf,skl'
     }
 
     response = requests.get(static_api_server, params=map_params)
@@ -194,10 +195,11 @@ def show_on_map(toponyms, map_type):
         toponyms_points.append(','.join(get_toponym(toponym)["Point"]["pos"].split()))
 
     # Формируем метки
-    pt = '~'.join(',flag'.join(toponyms_points))
+    pt = ',flag~'.join(toponyms_points)
+    print(pt + ',flag')
     map_params = {
         "l": map_type,
-        "pt": ''
+        "pt": pt + ',flag'
     }
 
     response = requests.get(static_api_server, params=map_params)
