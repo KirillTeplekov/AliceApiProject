@@ -109,7 +109,7 @@ def handle_dialog(res, req):
                 # Получаем карту города и загружаем её на Яндекс.Диалоги
                 image, country = get_country(cities[0], map_type)
                 image_id = post_image(image)
-                sessionStorage['image_id'].append(image_id)
+                sessionStorage[user_id]['image_id'].append(image_id)
 
                 res['response']['text'] = 'Этот город в стране - ' + country
                 res['response']['card'] = {}
@@ -128,7 +128,7 @@ def handle_dialog(res, req):
                 # загружаем фрагмент карты на Яндекс.Диалоги и получаем id изображения
                 image, distance = get_distance_on_map(cities[0], cities[1], map_type)
                 image_id = post_image(image)
-                sessionStorage['image_id'].append(image_id)
+                sessionStorage[user_id]['image_id'].append(image_id)
 
                 # Ответ в виде изображения карты с двумя городами
                 res['response']['text'] = 'Расстояние между этими городами: ' + str(distance) + ' км.'
@@ -147,7 +147,7 @@ def handle_dialog(res, req):
                 try:
                     image = get_traffic(word, map_type)
                     image_id = post_image(image)
-                    sessionStorage['image_id'].append(image_id)
+                    sessionStorage[user_id]['image_id'].append(image_id)
 
                     # Ответ в виде карты города с трафиком
                     res['response']['text'] = 'Трафик в городе' + cities[0]
@@ -174,7 +174,7 @@ def handle_dialog(res, req):
             try:
                 image, org_info = search_organization(split_phrase[-1], map_type)
                 image_id = post_image(image)
-                sessionStorage['image_id'].append(image_id)
+                sessionStorage[user_id]['image_id'].append(image_id)
 
                 # Формируем список категорий, чтобы отобразить их в виде списка
                 categories = [' Категории']
@@ -202,7 +202,7 @@ def handle_dialog(res, req):
         try:
             image = show_on_map(toponyms, map_type)
             image_id = post_image(image)
-            sessionStorage['image_id'].append(image_id)
+            sessionStorage[user_id]['image_id'].append(image_id)
 
             res['response']['text'] = 'Карта со всеми топонимами, указанными в вашем сообщении'
             res['response']['card'] = {}
