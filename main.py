@@ -3,7 +3,7 @@ from flask import Flask, request
 import requests
 import logging
 import json
-from geo import get_distance_on_map, get_country, get_toponym
+from geo import get_distance_on_map, get_country, search_organization
 
 app = Flask(__name__)
 
@@ -33,8 +33,10 @@ def main():
 
 def handle_dialog(res, req):
     user_id = req['session']['user_id']
+    # Ключевые слова
     help_words = ['помощь', 'документация']
     map_type_words = ['спутник', 'карта', 'гибрид']
+    search_org_words = ['найди организацию', 'где находится организация']
 
     original_utterance = req['request']['original_utterance'].lower()
 
@@ -46,7 +48,8 @@ def handle_dialog(res, req):
                                   "чтобы получить полную информацию о работе навыка. " \
                                   "Но для начала, прошу вас представиться."
         sessionStorage[user_id] = {
-            'first_name': None
+            'first_name': None,
+            'image_id': []
         }
         return
     if sessionStorage[user_id]['first_name'] is None:
@@ -67,10 +70,9 @@ def handle_dialog(res, req):
         return
 
     # Узнаем тип карты
-    if original_utterance in map_type_words:
-        for word in original_utterance:
-            if word in map_type_words:
-                map_type = word
+    for entity in req['request']['nlu']['entities']:
+        if entity in map_type_words:
+            map_type = entity
     else:
         map_type = 'карта'
 
@@ -79,12 +81,68 @@ def handle_dialog(res, req):
     if cities:
         # Если город один, то называем страну, в которой он находится
         if len(cities) == 1:
-            res['response']['text'] = 'Этот город в стране - ' + get_country(cities[0])
-        # Если же во фразе два городо, то вычисляем расстояние между городами и отмечаем их на карте
+            # Получаем карту города и загружаем её на Яндекс.Диалоги
+            image, country = get_country(cities[0])
+            image_id = post_image(image)
+            sessionStorage['image_id'].append(image_id)
+            res['response']['text'] = 'Этот город в стране - ' + country
+            res['response']['card'] = {}
+            res['response']['card']['type'] = 'BigImage'
+            res['response']['card']['title'] = 'Этот город в стране - ' + country
+            res['response']['card']['image_id'] = image_id
+            return
+
+        # Если же во фразе два города, то вычисляем расстояние между городами и отмечаем их на карте
         elif len(cities) == 2:
+            # Получаем карту с городами и расстояние между ними,
+            # загружаем фрагмент карты на Яндекс.Диалоги и получаем id изображения
             image, distance = get_distance_on_map(cities[0], cities[1], map_type)
+            image_id = post_image(image)
+            sessionStorage['image_id'].append(image_id)
+
+            # Ответ в виде изображения карты с двумя городами
             res['response']['text'] = 'Расстояние между этими городами: ' + distance + ' км.'
-        return
+            res['response']['card'] = {}
+            res['response']['card']['type'] = 'BigImage'
+            res['response']['card']['title'] = 'Расстояние между этими городами: ' + distance + ' км.'
+            res['response']['card']['image_id'] = image_id
+            return
+
+    # Проверяем вхождение ключевого поискового слова в фразу
+    splitting = False
+    if ' - ' in original_utterance:
+        splitter = ' - '
+        splitting = True
+    elif ': ' in original_utterance:
+        splitter = ': '
+        splitting = True
+    if splitting:
+        split_phrase = original_utterance.split(splitter)
+        if split_phrase[0] in search_org_words:
+            try:
+                image, org_info = search_organization()
+                image_id = post_image(image)
+                sessionStorage['image_id'].append(image_id)
+
+                # Формируем список категорий, чтобы отобразить их в виде списка
+                categories = [' Категории']
+                for category in org_info['categories']:
+                    categories.append(category)
+                # Текст ответа
+                text = 'Название организации: {}\nАдрес: {}\nURL: {}\n{}\n'\
+                       'Часы работы организации: {}\n'.format(org_info['name'], org_info['address'],
+                                                              org_info['url'], '\n '.join(categories),
+                                                              org_info['hours'])
+                # Ответ в виде изображения карты с отмеченной организацией
+                res['response']['text'] = text
+                res['response']['card'] = {}
+                res['response']['card']['type'] = 'BigImage'
+                res['response']['card']['image_id'] = image_id
+                res['response']['card']['title'] = text
+            except Exception:
+                res['response']['text'] = 'Ошибка в запросе. Попробуйте указать организацию точнее'
+            finally:
+                return
 
 
 # Распознаем имя пользователя
