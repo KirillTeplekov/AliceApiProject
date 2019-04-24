@@ -55,10 +55,10 @@ def get_distance_on_map(city1, city2, map_type):
     }
 
     response = requests.get(static_api_server, params=map_params)
-    image = response.content
+    files = {'file': response.content}
     distance = get_distance([float(x) for x in [city1_longitude, city1_latitude]],
                             [float(x) for x in [city2_longitude, city2_latitude]])
-    return image, distance
+    return files, distance
 
 
 def get_distance(p1, p2):
@@ -98,8 +98,8 @@ def get_country(city, map_type):
     }
 
     response = requests.get(static_api_server, params=map_params)
-    image = response.content
-    return image, country
+    files = {'file': response.content}
+    return files, country
 
 
 def search_organization(organization, map_type):
@@ -156,8 +156,8 @@ def search_organization(organization, map_type):
     }
 
     response = requests.get(static_api_server, params=map_params)
-    image = response.content
-    return image, org_info
+    files = {'file': response.content}
+    return files, org_info
 
 
 def get_traffic(city, map_type):
@@ -178,8 +178,8 @@ def get_traffic(city, map_type):
     }
 
     response = requests.get(static_api_server, params=map_params)
-    image = response.content
-    return image
+    files = {'file': response.content}
+    return files
 
 
 def show_on_map(toponyms, map_type):
@@ -201,5 +201,5 @@ def show_on_map(toponyms, map_type):
     }
 
     response = requests.get(static_api_server, params=map_params)
-    image = response.content
-    return image
+    files = {'file': response.content}
+    return files
