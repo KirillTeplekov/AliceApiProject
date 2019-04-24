@@ -6,6 +6,10 @@ from math import sin, cos, sqrt, atan2, radians
 static_api_server = "http://static-maps.yandex.ru/1.x/"
 # URL GeocoderAPI
 geocoder_api_server = "https://geocode-maps.yandex.ru/1.x/"
+# URL поиска по организациям
+search_organization_server = 'https://search-maps.yandex.ru/v1/'
+# Ключ для поиска по организациям
+search_api_key = 'dda3ddba-c9ea-4ead-9010-f43fbc15c6e3'
 
 
 # Получение топонима
@@ -17,7 +21,6 @@ def get_toponym(toponym):
         'format': 'json'
     }
 
-    # Запрос к геокодеру
     response = requests.get(geocoder_api_server, params)
     # Преобразование ответа в json-объект
     json_response = response.json()
@@ -42,7 +45,6 @@ def get_distance_on_map(city1, city2, map_type):
     city1_longitude, city1_latitude = city1["Point"]["pos"].split(" ")
     city2_longitude, city2_latitude = city2["Point"]["pos"].split(" ")
 
-    # Собираем параметры для запроса к StaticMapsAPI:
     map_params = {
         "l": map_type,
         "pt": ",".join([city1_longitude, city1_latitude]) + ",pm2rdl1~" + ",".join(
@@ -54,7 +56,7 @@ def get_distance_on_map(city1, city2, map_type):
     image = response.content
     distance = get_distance([float(x) for x in [city1_longitude, city1_latitude]],
                             [float(x) for x in [city2_longitude, city2_latitude]])
-    return distance, image
+    return image, distance
 
 
 def get_distance(p1, p2):
@@ -76,22 +78,76 @@ def get_distance(p1, p2):
     return distance
 
 
-def get_country(city):
-    url = "https://geocode-maps.yandex.ru/1.x/"
+def get_country(city, map_type):
+    global geocoder_api_server
 
-    params = {
-        'geocode': city,
-        'format': 'json'
+    city = get_toponym(city)
+
+    country = city['metaDataProperty']['GeocoderMetaData']['AddressDetails']['Country']['CountryName']
+
+    map_params = {
+        "l": map_type,
+        "pt": ",".join(city["Point"]["pos"]) + ",pm2rdl1~"
     }
 
-    response = requests.get(url, params)
-    json = response.json()
-
-    return \
-        json['response']['GeoObjectCollection']['featureMember'][0]['GeoObject']['metaDataProperty'][
-            'GeocoderMetaData'][
-            'AddressDetails']['Country']['CountryName']
+    response = requests.get(static_api_server, params=map_params)
+    image = response.content
+    return image, country
 
 
-def show_on_map(cities):
+def search_organization(organization):
+    global static_api_server
+    global search_organization_server
+    global search_api_key
+
+    # Словарь с данными об организации
+    org_info = {}
+
+    search_params = {
+        "apikey": search_api_key,
+        "text": organization,
+        "lang": "ru_RU",
+        "type": "biz"
+    }
+
+    response = requests.get(search_organization_server, params=search_params)
+    json_response = response.json()
+
+    # Получаем первую найденную организацию.
+    organization = json_response["features"][0]
+
+    # Название организации.
+    org_info["org_name"] = organization["properties"]["CompanyMetaData"]["name"]
+    # Адрес организации.
+    org_info["org_address"] = organization["properties"]["CompanyMetaData"]["address"]
+    # URL организации
+    org_info["url"] = organization["properties"]["CompanyMetaData"]["url"]
+    # Категории организации
+    org_info['categories'] = []
+    if organization["properties"]["CompanyMetaData"]["Categories"]:
+        for i in range(len(organization["properties"]["CompanyMetaData"]["Categories"])):
+            org_info['categories'].append(
+                str(i) + '. ' + organization["properties"]["CompanyMetaData"]["Categories"]['name'])
+    else:
+        org_info['categories'].append('Пусто')
+    # Время работы
+    org_info['hours'] = organization["properties"]["CompanyMetaData"]["Hours"]["text"]
+
+    # Получаем координаты ответа.
+    point = organization["geometry"]["coordinates"]
+    org_point = "{0},{1}".format(point[0], point[1])
+    delta = "0.005"
+
+    map_params = {
+        "spn": ",".join([delta, delta]),
+        "l": "map",
+        "pt": "{0},work".format(org_point)
+    }
+
+    response = requests.get(static_api_server, params=map_params)
+    image = response.content
+    return image, org_info
+
+
+def show_on_map(toponyms):
     pass
