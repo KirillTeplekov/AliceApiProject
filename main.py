@@ -115,8 +115,8 @@ def handle_dialog(res, req):
                 res['response']['card']['type'] = 'BigImage'
                 res['response']['card']['title'] = 'Этот город в стране - ' + country
                 res['response']['card']['image_id'] = image_id
-            except Exception:
-                res['response']['text'] = ':/ Ошибка в запросе. Попробуйте снова'
+            except Exception as e:
+                res['response']['text'] = ':/ Что-то пошло не так. Ошибка: ' + e
             finally:
                 return
 
@@ -130,13 +130,13 @@ def handle_dialog(res, req):
                 sessionStorage['image_id'].append(image_id)
 
                 # Ответ в виде изображения карты с двумя городами
-                res['response']['text'] = 'Расстояние между этими городами: ' + distance + ' км.'
+                res['response']['text'] = 'Расстояние между этими городами: ' + str(distance) + ' км.'
                 res['response']['card'] = {}
                 res['response']['card']['type'] = 'BigImage'
-                res['response']['card']['title'] = 'Расстояние между этими городами: ' + distance + ' км.'
+                res['response']['card']['title'] = 'Расстояние между этими городами: ' + str(distance) + ' км.'
                 res['response']['card']['image_id'] = image_id
-            except Exception:
-                res['response']['text'] = ':/ Ошибка в запросе. Попробуйте снова'
+            except Exception as e:
+                res['response']['text'] = ':/ Что-то пошло не так. Ошибка: ' + str(e)
             finally:
                 return
 
@@ -154,8 +154,8 @@ def handle_dialog(res, req):
                     res['response']['card']['type'] = 'BigImage'
                     res['response']['card']['image_id'] = image_id
                     res['response']['card']['title'] = 'Трафик в городе' + cities[0]
-                except Exception:
-                    res['response']['text'] = ':/ Ошибка в запросе. Попробуйте снова'
+                except Exception as e:
+                    res['response']['text'] = ':/ Что-то пошло не так. Ошибка: ' + e
                 finally:
                     return
 
@@ -191,8 +191,8 @@ def handle_dialog(res, req):
                 res['response']['card']['type'] = 'BigImage'
                 res['response']['card']['image_id'] = image_id
                 res['response']['card']['title'] = text
-            except Exception:
-                res['response']['text'] = ':/ Ошибка в запросе. Попробуйте указать организацию точнее'
+            except Exception as e:
+                res['response']['text'] = ':/ Ошибка в запросе. Попробуйте указать организацию точнее. Ошибка: ' + e
             finally:
                 return
 
@@ -208,8 +208,8 @@ def handle_dialog(res, req):
             res['response']['card']['type'] = 'BigImage'
             res['response']['card']['image_id'] = image_id
             res['response']['card']['title'] = 'Карта со всеми топонимами, указанными в вашем сообщении'
-        except Exception:
-            res['response']['text'] = ':/ Что-то пошло не так'
+        except Exception as e:
+            res['response']['text'] = ':/ Что-то пошло не так. Ошибка: ' + e
         finally:
             return
     else:
@@ -244,24 +244,14 @@ def get_all_toponyms(req):
 
 
 # Загружаем изображение на Яндекс.Диалоги
-def post_image(image):
+def post_image(files):
     skill_id = "f268642e-e326-4e68-8516-46ea1dfaa8e3"
     token = "AQAAAAAgSPKYAAT7o5rTzHsWUUMDm2-biDwcrFs"
-    file_name = "map.png"
-
-    try:
-        with open(file_name, "wb") as file:
-            file.write(image)
-    except IOError as ex:
-        print("Ошибка записи временного файла:", ex)
-        sys.exit(2)
 
     url = f'https://dialogs.yandex.net/api/v1/skills/{skill_id}/images'
-    files = {'file': open(file_name, 'rb')}
     headers = {'Authorization': f'OAuth {token}'}
-    response = requests.get(url, files=files, headers=headers)
-    image_id = response.json['image']['id']
-    return image_id
+    response = requests.get(url, files=files, headers=headers).json
+    return response['image']['id']
 
 
 def show_photo(city):
