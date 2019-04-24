@@ -10,6 +10,8 @@ geocoder_api_server = "https://geocode-maps.yandex.ru/1.x/"
 search_organization_server = 'https://search-maps.yandex.ru/v1/'
 # Ключ для поиска по организациям
 search_api_key = 'dda3ddba-c9ea-4ead-9010-f43fbc15c6e3'
+# Словарь типов карты
+map_type_dict = {'карта': 'map', 'спутник': 'sat', 'гибрид': 'sat,skl'}
 
 
 # Получение топонима
@@ -33,7 +35,7 @@ def get_toponym(toponym):
 # Получение расстояния между двумя городами, а также карты, где они отмечены и соединены линией
 def get_distance_on_map(city1, city2, map_type):
     # Получение типа карты
-    map_type_dict = {'карта': 'map', 'спутник': 'sat', 'гибрид': 'sat,skl'}
+    global map_type_dict
     map_type = map_type_dict[map_type]
 
     global static_api_server
@@ -80,6 +82,11 @@ def get_distance(p1, p2):
 
 def get_country(city, map_type):
     global geocoder_api_server
+    global static_api_server
+
+    # Получение типа карты
+    global map_type_dict
+    map_type = map_type_dict[map_type]
 
     city = get_toponym(city)
 
@@ -95,10 +102,14 @@ def get_country(city, map_type):
     return image, country
 
 
-def search_organization(organization):
+def search_organization(organization, map_type):
     global static_api_server
     global search_organization_server
     global search_api_key
+
+    # Получение типа карты
+    global map_type_dict
+    map_type = map_type_dict[map_type]
 
     # Словарь с данными об организации
     org_info = {}
@@ -140,7 +151,7 @@ def search_organization(organization):
 
     map_params = {
         "spn": ",".join([delta, delta]),
-        "l": "map",
+        "l": map_type,
         "pt": "{0},work".format(org_point)
     }
 
@@ -149,5 +160,46 @@ def search_organization(organization):
     return image, org_info
 
 
-def show_on_map(toponyms):
-    pass
+def get_traffic(city, map_type):
+    global static_api_server
+
+    # Получение типа карты
+    global map_type_dict
+    map_type = map_type_dict[map_type]
+
+    # Получение топонима города
+    city = get_toponym(city)
+    # Получение координатов городов
+    points = city["Point"]["pos"].split()
+
+    map_params = {
+        "l": map_type + 'trf,skl',
+        "ll": ",".join(points)
+    }
+
+    response = requests.get(static_api_server, params=map_params)
+    image = response.content
+    return image
+
+
+def show_on_map(toponyms, map_type):
+    global static_api_server
+
+    # Получение типа карты
+    global map_type_dict
+    map_type = map_type_dict[map_type]
+
+    toponyms_points = []
+    for toponym in toponyms:
+        toponyms_points.append(','.join(get_toponym(toponym)["Point"]["pos"].split()))
+
+    # Формируем метки
+    pt = '~'.join(',flag'.join(toponyms_points))
+    map_params = {
+        "l": map_type,
+        "pt": ''
+    }
+
+    response = requests.get(static_api_server, params=map_params)
+    image = response.content
+    return image
