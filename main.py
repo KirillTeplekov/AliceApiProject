@@ -1,10 +1,10 @@
-import sys
-from flask import Flask, request
-from random import choice
-import requests
-from requests import post
-import logging
 import json
+import logging
+import sys
+from random import choice
+
+import requests
+from flask import Flask, request
 from geo import get_distance_on_map, get_country, search_organization, get_traffic, show_on_map
 
 app = Flask(__name__)
@@ -35,6 +35,8 @@ def main():
 
 def handle_dialog(res, req):
     user_id = req['session']['user_id']
+
+    delete_image(sessionStorage.get('user_id''image_id'))
 
     nothing_message = [
         "В вашем сообщении не было указано ничего того, что я умею. Может попробуйте еще раз? Если нужна помощь, то напишите 'помощь' или 'документация'",
@@ -76,21 +78,21 @@ def handle_dialog(res, req):
     if original_utterance in help_words:
         res['response']['text'] = "Здравствуйте, " + sessionStorage[user_id][
             'first_name'].title() + " , вас приветствует навык 'pass'. " \
-                            "Данный навык работает с API Яндекс.Карт. " \
-                            "\n\nПо умолчаниию тип карты, возвращаемой навыком, 'карта', но если в вашем сообщении " \
-                            "содержатся слова: 'карта', 'гибрид', 'спутник' - " \
-                            "то навык это учтет и вернет карту соответствующего типа" \
-                            "\n\nВведите 'найди организацию' или 'где находится организация', " \
-                            "а затем название организации, разделив слова  помощью ' - ' или ': '. " \
-                            "\nПример: 'Найди организацию - Аптека'" \
-                            "\n\nЕсли в вашем сообщении содержится город и слова: 'пробка(и)', 'трафик', " \
-                            "то навык вернет карту, показыващую трафик в данном городе." \
-                            "\n\nЕсли в вашем сообщении содержится один город, " \
-                            "то навык вернет карту с городом и расскажет о стране, в которой находится город." \
-                            "\n\nЕсли в сообщении содержится два города, " \
-                            "то навык вернет карту с городами и дистанцию между ними" \
-                            "\n\nЕсли же в сообщении содержится несколько топонимов, то навык просто вернет карту, " \
-                            "на которой отмечены данные топонимы."
+                                    "Данный навык работает с API Яндекс.Карт. " \
+                                    "\n\nПо умолчаниию тип карты, возвращаемой навыком, 'карта', но если в вашем сообщении " \
+                                    "содержатся слова: 'карта', 'гибрид', 'спутник' - " \
+                                    "то навык это учтет и вернет карту соответствующего типа" \
+                                    "\n\nВведите 'найди организацию' или 'где находится организация', " \
+                                    "а затем название организации, разделив слова  помощью ' - ' или ': '. " \
+                                    "\nПример: 'Найди организацию - Аптека'" \
+                                    "\n\nЕсли в вашем сообщении содержится город и слова: 'пробка(и)', 'трафик', " \
+                                    "то навык вернет карту, показыващую трафик в данном городе." \
+                                    "\n\nЕсли в вашем сообщении содержится один город, " \
+                                    "то навык вернет карту с городом и расскажет о стране, в которой находится город." \
+                                    "\n\nЕсли в сообщении содержится два города, " \
+                                    "то навык вернет карту с городами и дистанцию между ними" \
+                                    "\n\nЕсли же в сообщении содержится несколько топонимов и слово 'покажи', то навык просто вернет карту, " \
+                                    "на которой отмечены данные топонимы."
 
         return
 
@@ -104,7 +106,24 @@ def handle_dialog(res, req):
     cities = get_cities(req)
     if cities:
         # Если город один, то называем страну, в которой он находится
-        if len(cities) == 1:
+        if len(cities) == 1 and not ('покажи' in req['request']['nlu']['tokens']):
+            for word in req['request']['nlu']['tokens']:
+                if word in traffic_words:
+                    try:
+                        image = get_traffic(cities[0], map_type)
+                        image_id = post_image(image)
+                        sessionStorage[user_id]['image_id'].append(image_id)
+
+                        # Ответ в виде карты города с трафиком
+                        res['response']['text'] = 'Трафик в городе' + str(cities[0]).title()
+                        res['response']['card'] = {}
+                        res['response']['card']['type'] = 'BigImage'
+                        res['response']['card']['image_id'] = image_id
+                        res['response']['card']['title'] = 'Трафик в городе ' + str(cities[0]).title()
+                    except Exception as e:
+                        res['response']['text'] = ':/ Что-то пошло не так. Ошибка: ' + str(e)
+                    finally:
+                        return
             try:
                 # Получаем карту города и загружаем её на Яндекс.Диалоги
                 image, country = get_country(cities[0], map_type)
@@ -117,12 +136,12 @@ def handle_dialog(res, req):
                 res['response']['card']['title'] = 'Этот город в стране - ' + country
                 res['response']['card']['image_id'] = image_id
             except Exception as e:
-                res['response']['text'] = ':/ Что-то пошло не так. Ошибка: ' + e
+                res['response']['text'] = ':/ Что-то пошло не так. Ошибка: ' + str(e)
             finally:
                 return
 
         # Если же во фразе два города, то вычисляем расстояние между городами и отмечаем их на карте
-        elif len(cities) == 2:
+        elif len(cities) == 2 and not ('покажи' in req['request']['nlu']['tokens']):
             try:
                 # Получаем карту с городами и расстояние между ними,
                 # загружаем фрагмент карты на Яндекс.Диалоги и получаем id изображения
@@ -140,25 +159,6 @@ def handle_dialog(res, req):
                 res['response']['text'] = ':/ Что-то пошло не так. Ошибка: ' + str(e)
             finally:
                 return
-
-    if len(cities) == 1:
-        for word in req['request']['nlu']['tokens']:
-            if word in traffic_words:
-                try:
-                    image = get_traffic(word, map_type)
-                    image_id = post_image(image)
-                    sessionStorage[user_id]['image_id'].append(image_id)
-
-                    # Ответ в виде карты города с трафиком
-                    res['response']['text'] = 'Трафик в городе' + cities[0]
-                    res['response']['card'] = {}
-                    res['response']['card']['type'] = 'BigImage'
-                    res['response']['card']['image_id'] = image_id
-                    res['response']['card']['title'] = 'Трафик в городе' + cities[0]
-                except Exception as e:
-                    res['response']['text'] = ':/ Что-то пошло не так. Ошибка: ' + e
-                finally:
-                    return
 
     # Проверяем вхождение ключевого поискового слова в фразу
     splitting = False
@@ -181,24 +181,26 @@ def handle_dialog(res, req):
                 for category in org_info['categories']:
                     categories.append(category)
                 # Текст ответа
-                text = 'Название организации: {}\nАдрес: {}\nURL: {}\n{}\n' \
-                       'Часы работы организации: {}\n'.format(org_info['name'], org_info['address'],
-                                                              org_info['url'], '\n '.join(categories),
-                                                              org_info['hours'])
+                text = 'Название организации: {}\nАдрес: {}\nURL: {}\n' \
+                       'Часы работы организации: {}\nКатегория: {}'.format(org_info['org_name'],
+                                                                           org_info['org_address'],
+                                                                           org_info['url'], org_info['categories'],
+                                                                           org_info['hours'])
 
                 # Ответ в виде изображения карты с отмеченной организацией
                 res['response']['text'] = text
                 res['response']['card'] = {}
                 res['response']['card']['type'] = 'BigImage'
                 res['response']['card']['image_id'] = image_id
-                res['response']['card']['title'] = text
+                res['response']['card']['title'] = org_info['org_name']
             except Exception as e:
-                res['response']['text'] = ':/ Ошибка в запросе. Попробуйте указать организацию точнее. Ошибка: ' + e
+                res['response']['text'] = ':/ Ошибка в запросе. Попробуйте указать организацию точнее. Ошибка: ' + str(
+                    e)
             finally:
                 return
 
     toponyms = get_all_toponyms(req)
-    if toponyms:
+    if toponyms and 'покажи' in req['request']['nlu']['tokens']:
         try:
             image = show_on_map(toponyms, map_type)
             image_id = post_image(image)
@@ -210,7 +212,7 @@ def handle_dialog(res, req):
             res['response']['card']['image_id'] = image_id
             res['response']['card']['title'] = 'Карта со всеми топонимами, указанными в вашем сообщении'
         except Exception as e:
-            res['response']['text'] = ':/ Что-то пошло не так. Ошибка: ' + e
+            res['response']['text'] = ':/ Что-то пошло не так. Ошибка: ' + str(e)
         finally:
             return
     else:
@@ -239,8 +241,7 @@ def get_all_toponyms(req):
     toponyms = []
     for entity in req['request']['nlu']['entities']:
         if entity['type'] == 'YANDEX.GEO':
-            toponyms = entity['value'].values()
-            break
+            toponyms.append(entity['value'].values())
     return toponyms
 
 
@@ -251,8 +252,17 @@ def post_image(files):
 
     url = f'https://dialogs.yandex.net/api/v1/skills/{skill_id}/images'
     headers = {'Authorization': f'OAuth {token}'}
-    response = post(url, files=files, headers=headers).json()
+    response = requests.post(url, files=files, headers=headers).json()
     return response['image']['id']
+
+
+# Удаляем все изображения
+def delete_image(list_image_id):
+    if list_image_id:
+        for image_id in list_image_id:
+            delete_url = f'https://dialogs.yandex.net/api/v1/skills/{skill_id}/images/{image_id}'
+            requests.delete(delete_url, headers=headers)
+    return
 
 
 if __name__ == '__main__':
