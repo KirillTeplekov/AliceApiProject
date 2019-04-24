@@ -2,6 +2,7 @@ import sys
 from flask import Flask, request
 from random import choice
 import requests
+from requests import post
 import logging
 import json
 from geo import get_distance_on_map, get_country, search_organization, get_traffic, show_on_map
@@ -250,9 +251,9 @@ def post_image(files):
 
     url = f'https://dialogs.yandex.net/api/v1/skills/{skill_id}/images'
     headers = {'Authorization': f'OAuth {token}'}
-    response = requests.get(url, files=files, headers=headers).json
+    response = post(url, files=files, headers=headers).json()
     return response['image']['id']
 
 
-def show_photo(city):
-    pass
+if __name__ == '__main__':
+    app.run(port=8080, host='127.0.0.1')
