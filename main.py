@@ -73,8 +73,6 @@ def handle_dialog(res, req):
             res['response']['text'] = 'Приятно познакомиться, ' + first_name.title() + '. Я - Алиса. Чем займемся?'
         return
 
-    sessionStorage[user_id]['image_id'] = delete_image(sessionStorage[user_id]['image_id'])
-
     if original_utterance in help_words:
         res['response']['text'] = "Здравствуйте, " + sessionStorage[user_id][
             'first_name'].title() + " , вас приветствует навык 'pass'. " \
@@ -94,7 +92,7 @@ def handle_dialog(res, req):
                                     "\n\nЕсли же в сообщении содержится несколько топонимов и слово 'покажи', то навык просто вернет карту, " \
                                     "на которой отмечены данные топонимы."
 
-    return
+        return
 
     # Узнаем тип карты
     map_type = 'карта'
@@ -258,10 +256,10 @@ def post_image(files):
 
 # Удаляем все изображения
 def delete_image(list_image_id):
+    skill_id = "f268642e-e326-4e68-8516-46ea1dfaa8e3"
+    token = "AQAAAAAgSPKYAAT7o5rTzHsWUUMDm2-biDwcrFs"
+    headers = {'Authorization': f'OAuth {token}'}
     if list_image_id:
-        skill_id = "f268642e-e326-4e68-8516-46ea1dfaa8e3"
-        token = "AQAAAAAgSPKYAAT7o5rTzHsWUUMDm2-biDwcrFs"
-        headers = {'Authorization': f'OAuth {token}'}
         for image_id in list_image_id:
             delete_url = f'https://dialogs.yandex.net/api/v1/skills/{skill_id}/images/{image_id}'
             requests.delete(delete_url, headers=headers)
