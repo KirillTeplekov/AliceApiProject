@@ -36,8 +36,6 @@ def main():
 def handle_dialog(res, req):
     user_id = req['session']['user_id']
 
-    delete_image(sessionStorage.get('user_id''image_id'))
-
     nothing_message = [
         "В вашем сообщении не было указано ничего того, что я умею. Может попробуйте еще раз? Если нужна помощь, то напишите 'помощь' или 'документация'",
         "Извините, вы что спросили? Может попробуйте еще раз? Если нужна помощь, то напишите 'помощь' или 'документация'",
@@ -75,6 +73,8 @@ def handle_dialog(res, req):
             res['response']['text'] = 'Приятно познакомиться, ' + first_name.title() + '. Я - Алиса. Чем займемся?'
         return
 
+    sessionStorage[user_id]['image_id'] = delete_image(sessionStorage[user_id]['image_id'])
+
     if original_utterance in help_words:
         res['response']['text'] = "Здравствуйте, " + sessionStorage[user_id][
             'first_name'].title() + " , вас приветствует навык 'pass'. " \
@@ -94,7 +94,7 @@ def handle_dialog(res, req):
                                     "\n\nЕсли же в сообщении содержится несколько топонимов и слово 'покажи', то навык просто вернет карту, " \
                                     "на которой отмечены данные топонимы."
 
-        return
+    return
 
     # Узнаем тип карты
     map_type = 'карта'
@@ -265,7 +265,7 @@ def delete_image(list_image_id):
         for image_id in list_image_id:
             delete_url = f'https://dialogs.yandex.net/api/v1/skills/{skill_id}/images/{image_id}'
             requests.delete(delete_url, headers=headers)
-    return
+    return []
 
 
 if __name__ == '__main__':
