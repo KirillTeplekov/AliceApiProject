@@ -259,6 +259,9 @@ def post_image(files):
 # Удаляем все изображения
 def delete_image(list_image_id):
     if list_image_id:
+        skill_id = "f268642e-e326-4e68-8516-46ea1dfaa8e3"
+        token = "AQAAAAAgSPKYAAT7o5rTzHsWUUMDm2-biDwcrFs"
+        headers = {'Authorization': f'OAuth {token}'}
         for image_id in list_image_id:
             delete_url = f'https://dialogs.yandex.net/api/v1/skills/{skill_id}/images/{image_id}'
             requests.delete(delete_url, headers=headers)
